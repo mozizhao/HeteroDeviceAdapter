@@ -2,22 +2,25 @@ package model;
 
 import entity.*;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
+import tool.IntersectionFinder;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.List;
 
 public class LinearRegressionModelGenerator {
-    public static double[] generateLinearRegressionParams(List<RpTpPair> powerPairs) {
-        SimpleRegression regression = new SimpleRegression(true);
-        powerPairs.stream().forEach(pair -> pair.getStrengthPairs().stream().forEach(apPowerPair -> regression.addData(apPowerPair.getTpPower(), apPowerPair.getRpPower())));
-        return new double[]{regression.getSlope(), regression.getIntercept()};
-    }
+    public static double[] generateLinearRegressionParams(TargetPoint tp, List<ReferencePoint> rps) {
 
-    public static void main(String[] args) {
         SimpleRegression regression = new SimpleRegression(true);
-        regression.addData(2, 3);
-        regression.addData(3, 4);
-        regression.addData(4, 5);
-        System.out.println(regression.getSlope());
-        System.out.println(regression.getIntercept());
+        for (ReferencePoint rp: rps) {
+            List<String> commonAddrList = IntersectionFinder.generateIntersectionMacAddrs(tp.getApSignals(), rp.getApSignals());
+
+            for (String mac: commonAddrList) {
+                APSignal tpap = tp.getApSignals().stream().filter(o -> o.getMacAddr().equals(mac)).findFirst().get();
+                APSignal rpap = rp.getApSignals().stream().filter(o -> o.getMacAddr().equals(mac)).findFirst().get();
+                regression.addData(tpap.getSignalStrength(), rpap.getSignalStrength());
+            }
+        }
+        return new double[]{regression.getSlope(), regression.getIntercept()};
     }
 }
