@@ -1,38 +1,50 @@
 package main;
 
-import entity.*;
-import io.*;
+import entity.ReferencePoint;
+import entity.TargetPoint;
+import io.ReferencePointReader;
+import io.TargetPointReader;
 import model.CorrelationRpFilter;
-import model.HeteroTransformer;
-import model.LinearRegressionModelGenerator;
+import tool.IntersectionFinder;
 
-import java.util.*;
+import java.util.List;
 
 public class Main {
-    public static void main(String[] args) throws Exception {
-        String tpFilePath = "C:\\Users\\38284\\Desktop\\indoor navigation\\WiFi_Raw_Data\\WiFi_Raw_Data\\Sony Xperia Z2\\path1-3\\wifi.dat";
-        String rpFilePath = "C:\\Users\\38284\\Desktop\\indoor navigation\\fingerprint.txt";
-        Double threshold = 0.96;
+    public static void main(String[] args) {
+        try {
+            String tpFilePath = args[1];
+            String rpFilePath = args[2];
+            Double threshold = Double.valueOf(args[3]);
 
+            List<TargetPoint> tps = TargetPointReader.load(tpFilePath);
+            List<ReferencePoint> rps = ReferencePointReader.load(rpFilePath);
 
-        List<TargetPoint> tps = TargetPointReader.load(tpFilePath);
-        List<ReferencePoint> rps = ReferencePointReader.load(rpFilePath);
+            double diffSum = 0.0;
+            int l = 0;
 
-        // use first tp to do the regression
-        TargetPoint firstTp = tps.get(0);
+            for (TargetPoint tp : tps) {
+                List<ReferencePoint> filteredRps = CorrelationRpFilter.filterRpHavingCorrelationGreaterThanThreshold(rps, tp, threshold);
 
-        // get the slope and intercept of linear regression
-        double[] vars = LinearRegressionModelGenerator.generateLinearRegressionParams(
-                firstTp, CorrelationRpFilter.filterRpHavingCorrelationGreaterThanThreshold(rps, firstTp, threshold)
-        );
+                if (filteredRps == null) {
+                    continue;
+                }
 
-        List<ReferencePoint> result = new ArrayList<>();
-        for (int i = 0; i < tps.size(); i++) {
-            TargetPoint tp = tps.get(i);
-            ReferencePoint rp = HeteroTransformer.transformer(rps, tp, vars[0], vars[1]);
-            result.add(rp);
+                for (ReferencePoint rp: filteredRps) {
+                    List<String> intersectionMacList = IntersectionFinder.generateIntersectionMacAddrs(rp, tp);
+                    for (String addr: intersectionMacList) {
+                        Double tpSig = tp.getApSignals().stream()
+                                .filter(o -> o.getMacAddr().equals(addr)).findFirst().get().getSignalStrength();
+                        Double rpSig = rp.getApSignals().stream()
+                                .filter(o -> o.getMacAddr().equals(addr)).findFirst().get().getSignalStrength();
+
+                        diffSum += (rpSig - tpSig);
+                        l++;
+                    }
+                }
+            }
+            System.out.println(diffSum/l);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-        result.stream().forEach(System.out::println);
     }
 }
