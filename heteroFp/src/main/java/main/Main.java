@@ -7,16 +7,19 @@ import io.TargetPointReader;
 import model.CorrelationRpFilter;
 import tool.IntersectionFinder;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
         try {
-            String tpFilePath = args[1];
-            String rpFilePath = args[2];
-            Double threshold = Double.valueOf(args[3]);
+            Double threshold = Double.valueOf(args[0]);
+            String rpFilePath = args[1];
 
-            List<TargetPoint> tps = TargetPointReader.load(tpFilePath);
+            List<TargetPoint> tps = new ArrayList<>();
+            for (int i = 2; i < args.length; i++) {
+                tps.addAll(TargetPointReader.load(args[i]));
+            }
             List<ReferencePoint> rps = ReferencePointReader.load(rpFilePath);
 
             double diffSum = 0.0;
